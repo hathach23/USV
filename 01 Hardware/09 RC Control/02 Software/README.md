@@ -1,4 +1,4 @@
-## Futaba SBUS
+## FrSky SBUS (Futaba invers)
 
 a Micropython driver for the SBUS protocol on Rpi Pico
 
