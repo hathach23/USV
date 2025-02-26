@@ -28,6 +28,7 @@ E;3;SB7;Timestamp;
 112;2;AF4;Führung Epsilon;
 120;2;AS1;Schub;
 122;2;AS2;Ruder;
+124;1;AS3;Anker;
 130;2;EM1;Spannung Akku 1;24,20
 132;2;EM2;Strom Akku 1;55,40
 134;2;EM3;Ladung Akku 1;55,00

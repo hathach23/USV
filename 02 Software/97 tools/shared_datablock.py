@@ -46,6 +46,7 @@ data = {
     "AF4": 0, # Führung Epsilon
     "AS1": 0, # Schub
     "AS2": 0, # Ruder
+    "AS3": 0, # Anker
     "EM1": 0, # Spannung Akku 1
     "EM2": 0, # Strom Akku 1
     "EM3": 0, # Ladung Akku 1
@@ -74,7 +75,7 @@ def read_csv_to_dict(file_path):
     """ read datablock from Datenblock.csv"""
     data_dict = {}
 
-    with open(file_path, 'r', newline='') as csvfile:
+    with open(file_path, 'r', encoding="latin-1", newline='') as csvfile:
         csv_reader = csv.reader(csvfile, delimiter=';')
         
         # Überspringe die erste Zeile
