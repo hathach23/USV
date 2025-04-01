@@ -1,6 +1,6 @@
 ## FrSky SBUS 8E2, 100.000 Baud (Futaba invers)
 
-a Micropython driver for the SBUS protocol on Rpi Pic
+a Micropython driver for the SBUS protocol on Pi Pico
 
 It supports 16 standard Channels plus 2 digitals.
 

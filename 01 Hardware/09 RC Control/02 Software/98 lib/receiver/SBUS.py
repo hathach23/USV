@@ -4,7 +4,7 @@ SBUS.py
 @author: Joe Grabow
 https://github.com/Joe-Grabow/USV
 
-Liest immer ein Byte von der seriellen Schnittstelle ein und löst damm Interrupt aus.
+Liest immer ein Byte von der seriellen Schnittstelle (PIO) ein und löst dann Interrupt aus.
 Im Interrupt-Handler werden 50 Byte in einen Puffer eingelesen. Ist der Puffer voll, wird er
 auf full gesetzt. In der main kann auf full abgefragt werden, um dann mit der Dekodierung
 zu beginnen.
@@ -210,7 +210,7 @@ if __name__ == "__main__":
     
     # Initialisierung der PIO
     BAUD = 100000  # SBUS-Baudrate 
-    RX_PIN = 9  # Hardware-Pin des PR2024      
+    RX_PIN = 9  # Hardware-Pin des PR2040, bei Bedarf ändern      
     uart_receiver = UART_RX(statemachine=0, rx_pin=RX_PIN, baud=BAUD)
     uart_receiver.activate(1)  # State Machine aktivieren
     
