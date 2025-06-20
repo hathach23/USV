@@ -14,7 +14,7 @@ from machine import Pin
 from rp2 import PIO, StateMachine, asm_pio
 import utime
 
-__version__ = '1.0'
+__version__ = '1.1'
 __author__ = 'Joe Grabow'
 
 # --- PIO-RX ---
@@ -24,7 +24,7 @@ __author__ = 'Joe Grabow'
 # Die Datenbits werden jeweils 1x in der Bitmitte abgetastet.
 # PIO_Takt = Baud * 9
 # 8 Bits werden von rechts eingeschoben (LSB first)
-@rp2.asm_pio(in_shiftdir=rp2.PIO.SHIFT_RIGHT, fifo_join=rp2.PIO.JOIN_RX)
+@asm_pio(in_shiftdir=PIO.SHIFT_RIGHT, fifo_join=PIO.JOIN_RX)
 def uart_rx():
     label("restart")    
     wrap_target()             # Begin Schleife der Statemachine
@@ -142,22 +142,68 @@ class SBUSDecoder:
     :param channel: Kanalnummer (1-16), die extrahiert werden soll
     :return: Wert des angegebenen Kanals (0-2047)
     """
+    channel_map = [
+        #Byte, shift, maskL, maskM, maskH
+            (1, 8, 0xFF, 0x07, 0x00),    # Ch1
+            (2, 5, 0xF8, 0x3F, 0x00),    # Ch2
+            (3, 2, 0xC0, 0xFF, 0x01),    # Ch3
+            (5, 7, 0xFE, 0x0F, 0x00),    # Ch4
+            (6, 4, 0xF0, 0x7F, 0x00),    # Ch5
+            (7, 1, 0x80, 0xFF, 0x03),    # Ch6
+            (9, 6, 0xFC, 0x1F, 0x00),    # Ch7
+            (10, 3, 0xE0, 0xFF, 0x00),   # Ch8
+            
+            (12, 8, 0xFF, 0x07, 0x00),   # Ch9
+            (13, 5, 0xF8, 0x3F, 0x00),   # Ch10
+            (14, 2, 0xC0, 0xFF, 0x01),   # Ch11
+            (16, 7, 0xFE, 0x0F, 0x00),   # Ch12
+            (17, 4, 0xF0, 0x7F, 0x00),   # Ch13
+            (18, 1, 0x80, 0xFF, 0x03),   # Ch14
+            (20, 6, 0xFC, 0x1F, 0x00),   # Ch15
+            (21, 3, 0xE0, 0xFF, 0x00),   # Ch16
+        ]
+
     @staticmethod
-    def get_sbus_channel(frame, channel):
+    def _debug_get_sbus_channel(frame, channel):
         if not (1 <= channel <= 16):
             return None
         
         channel -= 1
         
-        channel_map = [
-            (1, 2, 0, 11), (2, 3, 3, 11), (3, 4, 6, 11), (5, 6, 1, 11),
-            (6, 7, 4, 11), (7, 8, 7, 11), (9, 10, 2, 11), (10, 11, 5, 11),
-            (12, 13, 0, 11), (13, 14, 3, 11), (14, 15, 6, 11), (16, 17, 1, 11),
-            (17, 18, 4, 11), (18, 19, 7, 11), (20, 21, 2, 11), (21, 22, 5, 11)
-        ]
         
-        b1, b2, shift, mask = channel_map[channel]
-        return ((frame[b1] >> shift) | (frame[b2] << (8 - shift))) & 0x07FF
+        print('channel:',channel+1)
+        b1, shift, maskL, maskM, maskH = SBUSDecoder.channel_map[channel]
+        value = 0
+        
+        print('{0:08b}'.format(frame[b1+2]),'{0:08b}'.format(frame[b1+1]),'{0:08b}'.format(frame[b1]))
+        
+        print('byte 0:','{0:08b}'.format(frame[0]))
+        print(' mask H:','{0:08b}'.format(maskH))
+        print('byte H:','{0:08b}'.format(frame[b1+2]&maskH))
+        print(' mask M:','{0:08b}'.format(maskM))
+        print('byte M:','{0:08b}'.format(frame[b1+1]&maskM))
+        print(' mask L:','{0:08b}'.format(maskL))
+        print('byte L:','{0:08b}'.format(frame[b1]&maskL))
+        value = (((frame[b1+2]&maskH)<<(8+shift))) | ((frame[b1+1]&maskM)<<shift) | ((frame[b1]&maskL)>>(8-shift))
+        print('bitarray:','{0:11b}'.format(value))
+        print('value from bitarray',value)
+        
+    @staticmethod
+    def get_sbus_channel(frame, channel):
+        """
+        Extrahiert einen Kanal aus einem SBUS-Frame und gibt den entsprechenden Wert im Bereich 0-2048 zurück.
+        :param frame: bytearray mit 25 Bytes, das den SBUS-Frame enthält
+        :param channel: Integer (1-16) zur Auswahl des gewünschten Kanals
+        :return: Integer Wert des Kanals
+        """
+        if not (1 <= channel <= 16):
+            return None
+        
+        channel -= 1
+        
+        b1, shift, maskL, maskM, maskH = SBUSDecoder.channel_map[channel]
+        
+        return ((((frame[b1+2]&maskH)<<(8+shift))) | ((frame[b1+1]&maskM)<<shift) | ((frame[b1]&maskL)>>(8-shift)))
     
     @staticmethod
     def get_sbus_flags(frame, flag_type):
@@ -166,7 +212,7 @@ class SBUSDecoder:
         :param frame: bytearray mit 25 Bytes, das den SBUS-Frame enthält
         :param flag_type: Integer (1-4) zur Auswahl des gewünschten Flags
         :return: Boolean-Wert des entsprechenden Flags
-        """   
+        """
         flags = frame[23]
         flag_map = {
             1: (flags & 0x08) != 0,
@@ -197,10 +243,13 @@ if __name__ == "__main__":
                 sbus_frame = SBUSDecoder.find_frame(data)  # vollständigen SBUS-Fram suchen
                 
                 if sbus_frame:  # wenn ein Frame erkannt, Kanal x ausgeben
+                                        
                     channel = SBUSDecoder.get_sbus_channel(sbus_frame, 1)
                     print('Trust:', channel)
                     channel = SBUSDecoder.get_sbus_channel(sbus_frame, 2)
                     print('Rudder:', channel)
+                    channel = SBUSDecoder.get_sbus_channel(sbus_frame, 14)
+                    print('RC-Control on/off:', channel)
                     
                     flag = SBUSDecoder.get_sbus_flags(sbus_frame, 1)
                     print("Failsafe:", flag)
@@ -210,7 +259,7 @@ if __name__ == "__main__":
     
     # Initialisierung der PIO
     BAUD = 100000  # SBUS-Baudrate 
-    RX_PIN = 9  # Hardware-Pin des PR2040, bei Bedarf ändern      
+    RX_PIN = 18  # Hardware-Pin des PR2040, bei Bedarf ändern      
     uart_receiver = UART_RX(statemachine=0, rx_pin=RX_PIN, baud=BAUD)
     uart_receiver.activate(1)  # State Machine aktivieren
     
@@ -221,3 +270,4 @@ if __name__ == "__main__":
     
     uart_receiver.activate(0)  # Deaktivieren der PIO
     print("\ndone")
+    
